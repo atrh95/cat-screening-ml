@@ -10,12 +10,13 @@ targets:
     type: tool
     platform: macOS
     sources:
-      - path: CatScreeningML
+      - path: main.swift
     dependencies:
       - target: BinaryClassification
       - target: MultiClassClassification
       - target: MultiLabelClassification
       - target: OvRClassification
+      - target: OvOClassification
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CatScreeningML
@@ -36,7 +37,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: BinaryClassification/BinaryClassificationSources
+      - path: BinaryClassification/BinarySources
     resources:
       - path: BinaryClassification/Resources
     dependencies:
@@ -51,7 +52,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: MultiClassClassification/MultiClassClassificationSources
+      - path: MultiClassClassification/MultiClassSources
     resources:
       - path: MultiClassClassification/Resources
     dependencies:
@@ -66,7 +67,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: MultiLabelClassification/MultiLabelClassificationSources
+      - path: MultiLabelClassification/MultiLabelSources
     resources:
       - path: MultiLabelClassification/Resources
     dependencies:
@@ -81,7 +82,7 @@ targets:
     type: framework
     platform: macOS
     sources:
-      - path: OvRClassification/OvRClassificationSources
+      - path: OvRClassification/OvRSources
     resources:
       - path: OvRClassification/Resources
     dependencies:
@@ -89,5 +90,20 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvRClassification
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        DEFINES_MODULE: "YES"
+
+  OvOClassification:
+    type: framework
+    platform: macOS
+    sources:
+      - path: OvOClassification/OvOSources
+    resources:
+      - path: OvOClassification/Resources
+    dependencies:
+      - target: CSInterface
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvOClassification
         MACOSX_DEPLOYMENT_TARGET: "15.2"
         DEFINES_MODULE: "YES"
