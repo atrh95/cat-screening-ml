@@ -71,4 +71,4 @@ public struct OvOTrainingResult: TrainingResultProtocol {
             print("❌ OvO実行レポートの保存エラー: \(error.localizedDescription) (Path: \(reportURL.path))")
         }
     }
-} 
+}

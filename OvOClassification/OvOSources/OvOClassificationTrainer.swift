@@ -23,37 +23,53 @@ private struct OvOPairTrainingResult {
 public class OvOClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = OvOTrainingResult
 
+    // DI 用のプロパティ
+    private let resourcesDirectoryPathOverride: String?
+    private let outputDirectoryPathOverride: String?
+
     public var outputDirPath: String {
+        if let overridePath = outputDirectoryPathOverride {
+            return overridePath
+        }
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent() // OvOClassificationSources
-        dir.deleteLastPathComponent() // OvOClassification
+        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent()
         return dir.appendingPathComponent("OutputModels").path
     }
 
-    public var classificationMethod: String { "OvO" } // 分類手法をOvOに変更
+    public var classificationMethod: String { "OvO" }
 
     public var resourcesDirectoryPath: String {
+        if let overridePath = resourcesDirectoryPathOverride {
+            return overridePath
+        }
         var dir = URL(fileURLWithPath: #filePath)
-        dir.deleteLastPathComponent() // OvOClassificationSources
-        dir.deleteLastPathComponent() // OvOClassification
+        dir.deleteLastPathComponent()
+        dir.deleteLastPathComponent()
         return dir.appendingPathComponent("Resources").path
     }
 
-    public init() {}
+    public init(
+        resourcesDirectoryPathOverride: String? = nil,
+        outputDirectoryPathOverride: String? = nil
+    ) {
+        self.resourcesDirectoryPathOverride = resourcesDirectoryPathOverride
+        self.outputDirectoryPathOverride = outputDirectoryPathOverride
+    }
 
     static let fileManager = FileManager.default
-    static let tempBaseDirName = "TempOvOTrainingData" // 一時ディレクトリ名をOvO用に変更
+    static let tempBaseDirName = "TempOvOTrainingData"
 
     public func train(
         author: String,
         modelName: String,
         version: String,
-        maxIterations: Int
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> OvOTrainingResult? {
         let mainOutputRunURL: URL
         do {
             mainOutputRunURL = try createOutputDirectory(
-                modelName: modelName, // ベースモデル名
+                modelName: modelName,
                 version: version
             )
         } catch {
@@ -62,9 +78,9 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         }
 
         let baseProjectURL = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // OvOClassificationSources
-            .deletingLastPathComponent() // OvOClassification
-            .deletingLastPathComponent() // プロジェクトルート
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
         let tempOvOBaseURL = baseProjectURL.appendingPathComponent(Self.tempBaseDirName) // OvO用一時ディレクトリベースパス
         defer {
             if Self.fileManager.fileExists(atPath: tempOvOBaseURL.path) {
@@ -86,7 +102,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             return nil
         }
 
-        let ovoResourcesURL = URL(fileURLWithPath: resourcesDirectoryPath)
+        let ovoResourcesURL = URL(fileURLWithPath: resourcesDirectoryPath) // Use the (potentially overridden) property
 
         print("🚀 OvOトレーニング開始 (バージョン: \(version))...")
 
@@ -111,13 +127,13 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             print("🛑 エラー: OvOトレーニングには最低2つのクラスラベルディレクトリが必要です。現在 \(allLabelSourceDirectories.count)個。処理中止。")
             return nil
         }
-        
+
         print("  検出された総ラベル数: \(allLabelSourceDirectories.count)")
 
         // クラスペアを生成 (例: [A,B], [A,C], [B,C])
         var classPairs: [(URL, URL)] = []
-        for i in 0..<allLabelSourceDirectories.count {
-            for j in (i + 1)..<allLabelSourceDirectories.count {
+        for i in 0 ..< allLabelSourceDirectories.count {
+            for j in (i + 1) ..< allLabelSourceDirectories.count {
                 classPairs.append((allLabelSourceDirectories[i], allLabelSourceDirectories[j]))
             }
         }
@@ -126,7 +142,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             print("🛑 エラー: 有効なクラスペアが生成できませんでした。処理中止。")
             return nil
         }
-        
+
         print("  生成されたOvOペア数: \(classPairs.count)")
 
         var allPairTrainingResults: [OvOPairTrainingResult] = []
@@ -147,7 +163,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 author: author,
                 version: version,
                 pairIndex: pairIndex,
-                maxIterations: maxIterations
+                modelParameters: modelParameters
             ) {
                 allPairTrainingResults.append(result)
                 print("  ✅ OvOペア [\(dir1.lastPathComponent)] vs [\(dir2.lastPathComponent)] トレーニング成功")
@@ -167,7 +183,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             IndividualModelReport(
                 modelName: result.modelName,
                 // OvOでは「陽性クラス」という概念がOvRと異なるため、ペアの情報を格納する
-                positiveClassName: "\(result.class1Name)_vs_\(result.class2Name)", 
+                positiveClassName: "\(result.class1Name)_vs_\(result.class2Name)",
                 trainingAccuracyRate: result.trainingAccuracyRate,
                 validationAccuracyPercentage: result.validationAccuracyRate,
                 // OvOの再現率・適合率は各クラス視点で計算可能だが、ここではペア全体の精度を重視
@@ -185,7 +201,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         let trainingResult = OvOTrainingResult(
             modelOutputPath: finalRunOutputPath,
             trainingDataPaths: trainingDataPaths,
-            maxIterations: maxIterations,
+            maxIterations: modelParameters.maxIterations,
             individualReports: individualReports,
             numberOfClasses: allLabelSourceDirectories.count, // 総クラス数を追加
             numberOfPairs: classPairs.count // 総ペア数を追加
@@ -203,8 +219,8 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
         modelName: String, // ユーザー指定の基本モデル名
         author: String,
         version: String,
-        pairIndex: Int,
-        maxIterations: Int
+        pairIndex _: Int,
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> OvOPairTrainingResult? {
         let class1NameOriginal = class1DirURL.lastPathComponent
         let class2NameOriginal = class2DirURL.lastPathComponent
@@ -214,7 +230,7 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             .map(\.capitalized)
             .joined()
             .replacingOccurrences(of: "[^a-zA-Z0-9]", with: "", options: .regularExpression)
-        
+
         let class2NameForModel = class2NameOriginal.components(separatedBy: CharacterSet(charactersIn: "_-"))
             .map(\.capitalized)
             .joined()
@@ -239,7 +255,9 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             try Self.fileManager.createDirectory(at: tempClass1DataDirForML, withIntermediateDirectories: true)
             try Self.fileManager.createDirectory(at: tempClass2DataDirForML, withIntermediateDirectories: true)
         } catch {
-            print("🛑 エラー: OvOペア [\(class1NameForModel) vs \(class2NameForModel)] 一時学習ディレクトリ作成失敗: \(error.localizedDescription)")
+            print(
+                "🛑 エラー: OvOペア [\(class1NameForModel) vs \(class2NameForModel)] 一時学習ディレクトリ作成失敗: \(error.localizedDescription)"
+            )
             return nil
         }
 
@@ -255,7 +273,9 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             class1SamplesCount = (try? getFilesInDirectory(tempClass1DataDirForML).count) ?? 0
         }
         guard class1SamplesCount > 0 else {
-            print("⚠️ OvOペア [\(class1NameForModel) vs \(class2NameForModel)]: クラス1 [\(class1NameForModel)] のサンプルなし。学習スキップ。Path: \(tempClass1DataDirForML.path)")
+            print(
+                "⚠️ OvOペア [\(class1NameForModel) vs \(class2NameForModel)]: クラス1 [\(class1NameForModel)] のサンプルなし。学習スキップ。Path: \(tempClass1DataDirForML.path)"
+            )
             try? Self.fileManager.removeItem(at: tempOvOPairRootURL) // 不要な一時ディレクトリを削除
             return nil
         }
@@ -272,49 +292,56 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             class2SamplesCount = (try? getFilesInDirectory(tempClass2DataDirForML).count) ?? 0
         }
         guard class2SamplesCount > 0 else {
-            print("⚠️ OvOペア [\(class1NameForModel) vs \(class2NameForModel)]: クラス2 [\(class2NameForModel)] のサンプルなし。学習スキップ。Path: \(tempClass2DataDirForML.path)")
+            print(
+                "⚠️ OvOペア [\(class1NameForModel) vs \(class2NameForModel)]: クラス2 [\(class2NameForModel)] のサンプルなし。学習スキップ。Path: \(tempClass2DataDirForML.path)"
+            )
             try? Self.fileManager.removeItem(at: tempOvOPairRootURL) // 不要な一時ディレクトリを削除
             return nil
         }
-        
-        print("  準備完了: [\(class1NameForModel)] (\(class1SamplesCount)枚) vs [\(class2NameForModel)] (\(class2SamplesCount)枚)")
 
-        // CreateMLトレーニングパラメータ 
-        var params = MLImageClassifier.ModelParameters()
-        params.featureExtractor = .scenePrint(revision: 1)
-        params.maxIterations = maxIterations
-        params.validation = .split(strategy: .automatic)
-        // OvRでは明示的なaugmentation設定がこのブロックにないため、OvOもそれに倣う
+        print(
+            "  準備完了: [\(class1NameForModel)] (\(class1SamplesCount)枚) vs [\(class2NameForModel)] (\(class2SamplesCount)枚)"
+        )
 
         let startTime = Date()
         var trainingAccuracy: Double = 0
         var validationAccuracy: Double = 0
-        var trainingError: Double = 1.0
-        var validationError: Double = 1.0
+        var trainingError = 1.0
+        var validationError = 1.0
 
         let modelPath = mainRunURL.appendingPathComponent("\(pairModelFileNameBase).mlmodel")
 
         do {
             print("  CreateML ImageClassifier トレーニング開始: [\(class1NameForModel)] vs [\(class2NameForModel)]")
             let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: tempOvOPairRootURL)
-            
-            let classifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: params)
+
+            let classifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
 
             trainingAccuracy = 1.0 - classifier.trainingMetrics.classificationError
             trainingError = classifier.trainingMetrics.classificationError
-            
+
             validationAccuracy = 1.0 - classifier.validationMetrics.classificationError
             validationError = classifier.validationMetrics.classificationError
 
             var descriptionParts: [String] = []
-            descriptionParts.append(String(format: "クラス構成: %@: %d枚; %@: %d枚", class1NameForModel, class1SamplesCount, class2NameForModel, class2SamplesCount))
-            descriptionParts.append("最大反復回数: \(maxIterations)回")
-            descriptionParts.append(String(format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%", trainingAccuracy * 100, validationAccuracy * 100))
+            descriptionParts.append(String(
+                format: "クラス構成: %@: %d枚; %@: %d枚",
+                class1NameForModel,
+                class1SamplesCount,
+                class2NameForModel,
+                class2SamplesCount
+            ))
+            descriptionParts.append("最大反復回数: \(modelParameters.maxIterations)回")
+            descriptionParts.append(String(
+                format: "訓練正解率: %.1f%%, 検証正解率: %.1f%%",
+                trainingAccuracy * 100,
+                validationAccuracy * 100
+            ))
             descriptionParts.append("(検証: 自動分割)")
             let individualDesc = descriptionParts.joined(separator: "\n")
 
             let modelMetadata = MLModelMetadata(author: author, shortDescription: individualDesc, version: version)
-            
+
             try classifier.write(to: modelPath, metadata: modelMetadata)
             print("  ✅ モデル保存成功: \(modelPath.path)")
 
@@ -337,14 +364,18 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
                 individualModelDescription: individualDesc
             )
 
-        } catch let createMLError as CreateML.MLCreateError { 
-            print("🛑 エラー: CreateML ImageClassifier トレーニングまたはモデル保存失敗 [\(class1NameForModel) vs \(class2NameForModel)]: \(createMLError.localizedDescription)")
-            print("  詳細情報: \(createMLError)") 
-            try? Self.fileManager.removeItem(at: tempOvOPairRootURL) 
+        } catch let createMLError as CreateML.MLCreateError {
+            print(
+                "🛑 エラー: CreateML ImageClassifier トレーニングまたはモデル保存失敗 [\(class1NameForModel) vs \(class2NameForModel)]: \(createMLError.localizedDescription)"
+            )
+            print("  詳細情報: \(createMLError)")
+            try? Self.fileManager.removeItem(at: tempOvOPairRootURL)
             return nil
         } catch {
-            print("🛑 エラー: CreateML ImageClassifier トレーニングまたはモデル保存失敗 [\(class1NameForModel) vs \(class2NameForModel)]: \(error.localizedDescription)")
-            try? Self.fileManager.removeItem(at: tempOvOPairRootURL) 
+            print(
+                "🛑 エラー: CreateML ImageClassifier トレーニングまたはモデル保存失敗 [\(class1NameForModel) vs \(class2NameForModel)]: \(error.localizedDescription)"
+            )
+            try? Self.fileManager.removeItem(at: tempOvOPairRootURL)
             return nil
         }
     }
@@ -356,7 +387,8 @@ public class OvOClassificationTrainer: ScreeningTrainerProtocol {
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
         ).filter { url in
-            !url.lastPathComponent.hasPrefix(".") && (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+            !url.lastPathComponent
+                .hasPrefix(".") && (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
         }
     }
-} 
+}

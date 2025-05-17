@@ -6,7 +6,13 @@ import Foundation
 public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = BinaryTrainingResult
 
+    private let resourcesDirectoryPathOverride: String?
+    private let outputDirectoryPathOverride: String?
+
     public var outputDirPath: String {
+        if let overridePath = outputDirectoryPathOverride {
+            return overridePath
+        }
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
         dir.deleteLastPathComponent()
@@ -16,19 +22,25 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
     public var classificationMethod: String { "Binary" }
 
     public var resourcesDirectoryPath: String {
+        if let overridePath = resourcesDirectoryPathOverride {
+            return overridePath
+        }
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
         dir.deleteLastPathComponent()
         return dir.appendingPathComponent("Resources").path
     }
 
-    public init() {}
+    public init(resourcesDirectoryPathOverride: String? = nil, outputDirectoryPathOverride: String? = nil) {
+        self.resourcesDirectoryPathOverride = resourcesDirectoryPathOverride
+        self.outputDirectoryPathOverride = outputDirectoryPathOverride
+    }
 
     public func train(
         author: String,
         modelName: String,
         version: String,
-        maxIterations: Int
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> BinaryTrainingResult? {
         let resourcesPath = resourcesDirectoryPath
         let resourcesDirURL = URL(fileURLWithPath: resourcesPath)
@@ -54,7 +66,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             outputDirURL: outputDirectoryURL,
             author: author,
             version: version,
-            maxIterations: maxIterations
+            modelParameters: modelParameters
         )
     }
 
@@ -65,7 +77,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         outputDirURL: URL,
         author: String,
         version: String,
-        maxIterations: Int
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     ) async -> BinaryTrainingResult? {
         // トレーニングデータ親ディレクトリ存在確認
         guard FileManager.default.fileExists(atPath: trainingDataParentDirURL.path) else {
@@ -87,14 +99,13 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
         do {
             let trainingStartTime = Date()
 
-            // モデルパラメータ
-            var modelParameters = MLImageClassifier.ModelParameters()
-            modelParameters.featureExtractor = .scenePrint(revision: 1) // 特徴抽出器
-            modelParameters.maxIterations = maxIterations
-            modelParameters.validation = .split(strategy: .automatic) // 検証データ自動分割
+            // モデルパラメータは引数から渡されるものを使用
 
-            print("⏳ \(modelName) モデルトレーニング実行中 (最大反復: \(maxIterations)回)... ")
-            let imageClassifier = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
+            print("⏳ \(modelName) モデルトレーニング実行中 (最大反復: \(modelParameters.maxIterations)回)... ")
+            let imageClassifier = try MLImageClassifier(
+                trainingData: trainingDataSource,
+                parameters: modelParameters // Use injected modelParameters
+            )
             print("✅ \(modelName) モデルトレーニング完了")
 
             let trainingEndTime = Date()
@@ -115,7 +126,9 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             var recallRate = 0.0
             var precisionRate = 0.0
 
-            let confusionMatrix = validationMetrics.confusion
+            let confusionMatrix: MLDataTable
+
+            confusionMatrix = validationMetrics.confusion
 
             // MLDataTableの行構成: actualLabel | predictedLabel | count
             var labelSet = Set<String>()
@@ -218,7 +231,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
             }
 
             // 2. 最大反復回数
-            descriptionParts.append("最大反復回数: \(maxIterations)回")
+            descriptionParts.append("最大反復回数: \(modelParameters.maxIterations)回")
 
             // 3. 正解率情報
             descriptionParts.append(String(
@@ -274,7 +287,7 @@ public class BinaryClassificationTrainer: ScreeningTrainerProtocol {
                 trainedModelFilePath: outputModelFileURL.path,
                 sourceTrainingDataDirectoryPath: trainingDataParentDirURL.path,
                 detectedClassLabelsList: detectedClassLabels,
-                maxIterations: maxIterations
+                maxIterations: modelParameters.maxIterations // Use maxIterations from modelParameters
             )
 
         } catch let createMLError as CreateML.MLCreateError {

@@ -1,0 +1,142 @@
+[
+  {
+    "filename": "black_and_white/cat_cjd.jpg",
+    "annotations": [
+      "black_and_white"
+    ]
+  },
+  {
+    "filename": "black_and_white/cat_cmv.jpg",
+    "annotations": [
+      "black_and_white"
+    ]
+  },
+  {
+    "filename": "black_and_white/cat_cq6.jpg",
+    "annotations": [
+      "black_and_white"
+    ]
+  },
+  {
+    "filename": "black_and_white/cat_cvd.jpg",
+    "annotations": [
+      "black_and_white"
+    ]
+  },
+  {
+    "filename": "black_and_white/cat_d0b.jpg",
+    "annotations": [
+      "black_and_white"
+    ]
+  },
+  {
+    "filename": "human_hands_detected/cat_das.jpg",
+    "annotations": [
+      "human_hands_detected"
+    ]
+  },
+  {
+    "filename": "human_hands_detected/cat_deg.jpg",
+    "annotations": [
+      "human_hands_detected"
+    ]
+  },
+  {
+    "filename": "human_hands_detected/cat_e17.jpg",
+    "annotations": [
+      "human_hands_detected"
+    ]
+  },
+  {
+    "filename": "human_hands_detected/cat_e4m.jpg",
+    "annotations": [
+      "human_hands_detected"
+    ]
+  },
+  {
+    "filename": "human_hands_detected/cat_sf.jpg",
+    "annotations": [
+      "human_hands_detected"
+    ]
+  },
+  {
+    "filename": "mouth_open/cat_gs.jpg",
+    "annotations": [
+      "mouth_open"
+    ]
+  },
+  {
+    "filename": "mouth_open/cat_ik.jpg",
+    "annotations": [
+      "mouth_open"
+    ]
+  },
+  {
+    "filename": "mouth_open/cat_j3.jpg",
+    "annotations": [
+      "mouth_open"
+    ]
+  },
+  {
+    "filename": "mouth_open/cat_jc.jpg",
+    "annotations": [
+      "mouth_open"
+    ]
+  },
+  {
+    "filename": "mouth_open/cat_md.jpg",
+    "annotations": [
+      "mouth_open"
+    ]
+  },
+  {
+    "filename": "safe/cat_dhp.jpg",
+    "annotations": []
+  },
+  {
+    "filename": "safe/cat_dkp.jpg",
+    "annotations": []
+  },
+  {
+    "filename": "safe/cat_g8.jpg",
+    "annotations": []
+  },
+  {
+    "filename": "safe/cat_oi.jpg",
+    "annotations": []
+  },
+  {
+    "filename": "safe/cat_usj_vstvO.jpg",
+    "annotations": []
+  },
+  {
+    "filename": "sphynx/istockphoto-511646603-612x612.jpg",
+    "annotations": [
+      "sphynx"
+    ]
+  },
+  {
+    "filename": "sphynx/istockphoto-543829142-612x612.jpg",
+    "annotations": [
+      "sphynx"
+    ]
+  },
+  {
+    "filename": "sphynx/istockphoto-588987984-612x612.jpg",
+    "annotations": [
+      "sphynx"
+    ]
+  },
+  {
+    "filename": "sphynx/istockphoto-594077780-612x612.jpg",
+    "annotations": [
+      "sphynx"
+    ]
+  },
+  {
+    "filename": "sphynx/istockphoto-609709762-612x612.jpg",
+    "annotations": [
+      "sphynx"
+    ]
+  }
+]

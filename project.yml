@@ -21,6 +21,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CatScreeningML
         MACOSX_DEPLOYMENT_TARGET: "15.2"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
 
   CSInterface:
     type: framework
@@ -32,6 +34,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.CSInterface
         MACOSX_DEPLOYMENT_TARGET: "15.2"
         DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
 
   BinaryClassification:
     type: framework
@@ -46,7 +50,26 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryClassification
         MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
+  BinaryTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: BinaryClassification/BinaryTests
+    resources:
+      - path: BinaryClassification/BinaryTests/TestResources
+        onDemand: false
+    dependencies:
+      - target: BinaryClassification
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.BinaryTests
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        GENERATE_INFOPLIST_FILE: true
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
 
   MultiClassClassification:
     type: framework
@@ -61,7 +84,26 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassClassification
         MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
+  MultiClassTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: MultiClassClassification/MultiClassTests
+    resources:
+      - path: MultiClassClassification/MultiClassTests/TestResources
+        onDemand: false
+    dependencies:
+      - target: MultiClassClassification
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiClassTests
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        GENERATE_INFOPLIST_FILE: true
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
 
   MultiLabelClassification:
     type: framework
@@ -77,6 +119,26 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelClassification
         MACOSX_DEPLOYMENT_TARGET: "15.2"
         DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
+  MultiLabelTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: MultiLabelClassification/MultiLabelTests
+    resources:
+      - path: MultiLabelClassification/MultiLabelTests/TestResources
+        onDemand: false
+    dependencies:
+      - target: MultiLabelClassification
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.MultiLabelTests
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        GENERATE_INFOPLIST_FILE: true
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
 
   OvRClassification:
     type: framework
@@ -91,7 +153,26 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvRClassification
         MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
+  OvRTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: OvRClassification/OvRTests
+    resources:
+      - path: OvRClassification/OvRTests/TestResources
+        onDemand: false
+    dependencies:
+      - target: OvRClassification
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvRTests
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        GENERATE_INFOPLIST_FILE: true
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
 
   OvOClassification:
     type: framework
@@ -106,4 +187,23 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvOClassification
         MACOSX_DEPLOYMENT_TARGET: "15.2"
-        DEFINES_MODULE: "YES"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
+  OvOTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: OvOClassification/OvOTests
+    resources:
+      - path: OvOClassification/OvOTests/TestResources
+        onDemand: false
+    dependencies:
+      - target: OvOClassification
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akitorahayashi.OvOTests
+        MACOSX_DEPLOYMENT_TARGET: "15.2"
+        GENERATE_INFOPLIST_FILE: true
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO

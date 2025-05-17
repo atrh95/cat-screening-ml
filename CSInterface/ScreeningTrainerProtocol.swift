@@ -1,3 +1,4 @@
+import CreateML
 import Foundation
 
 /// 画像分類モデルトレーナー
@@ -9,7 +10,12 @@ public protocol ScreeningTrainerProtocol {
     var classificationMethod: String { get }
 
     /// トレーニング実行
-    func train(author: String, modelName: String, version: String, maxIterations: Int) async
+    func train(
+        author: String,
+        modelName: String,
+        version: String,
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
+    ) async
         -> TrainingResultType?
 }
 

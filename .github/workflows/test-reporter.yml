@@ -1,0 +1,51 @@
+name: Test Reporter
+
+on:
+  workflow_call:
+    inputs:
+      binary_tests_result:
+        required: true
+        type: string
+      multi_class_tests_result:
+        required: true
+        type: string
+      multi_label_tests_result:
+        required: true
+        type: string
+      ovr_tests_result:
+        required: true
+        type: string
+      ovo_tests_result:
+        required: true
+        type: string
+    outputs:
+      overall_test_result:
+        description: "全体のテスト結果 (success または failure)"
+        value: ${{ jobs.report.outputs.overall_result }}
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    outputs:
+      overall_result: ${{ steps.set_overall_status.outputs.result }}
+    steps:
+      - name: Check individual test job outcomes
+        id: set_overall_status
+        run: |
+          echo "Binary Tests Result: ${{ inputs.binary_tests_result }}"
+          echo "MultiClass Tests Result: ${{ inputs.multi_class_tests_result }}"
+          echo "MultiLabel Tests Result: ${{ inputs.multi_label_tests_result }}"
+          echo "OvR Tests Result: ${{ inputs.ovr_tests_result }}"
+          echo "OvO Tests Result: ${{ inputs.ovo_tests_result }}"
+
+          if [[ "${{ inputs.binary_tests_result }}" == "success" && \
+                "${{ inputs.multi_class_tests_result }}" == "success" && \
+                "${{ inputs.multi_label_tests_result }}" == "success" && \
+                "${{ inputs.ovr_tests_result }}" == "success" && \
+                "${{ inputs.ovo_tests_result }}" == "success" ]]; then
+            echo "All test jobs succeeded."
+            echo "result=success" >> $GITHUB_OUTPUT
+          else
+            echo "One or more test jobs failed or were skipped."
+            echo "result=failure" >> $GITHUB_OUTPUT
+          fi 

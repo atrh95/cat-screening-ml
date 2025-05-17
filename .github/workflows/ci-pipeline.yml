@@ -1,0 +1,133 @@
+name: CatScreeningML CI Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  # Mintのセットアップ
+  setup-mint:
+    name: Setup Mint
+    uses: ./.github/workflows/setup-mint.yml
+    permissions:
+      contents: read
+
+  # --- ユニットテストを並列で実行 ---
+  binary-tests:
+    name: BinaryTests
+    needs: setup-mint
+    uses: ./.github/workflows/binary-tests.yml
+
+  multi-class-tests:
+    name: MultiClassTests
+    needs: setup-mint
+    uses: ./.github/workflows/multi-class-tests.yml
+
+  multi-label-tests:
+    name: MultiLabelTests
+    needs: setup-mint
+    uses: ./.github/workflows/multi-label-tests.yml
+
+  ovr-tests:
+    name: OvRTests
+    needs: setup-mint
+    uses: ./.github/workflows/ovr-tests.yml
+
+  ovo-tests:
+    name: OvOTests
+    needs: setup-mint
+    uses: ./.github/workflows/ovo-tests.yml
+
+  # テスト結果レポート生成
+  report:
+    name: Report Status
+    needs:
+      - binary-tests
+      - multi-class-tests
+      - multi-label-tests
+      - ovr-tests
+      - ovo-tests
+    if: always()
+    uses: ./.github/workflows/test-reporter.yml
+    with:
+      binary_tests_result: ${{ needs.binary-tests.outputs.test_result }}
+      multi_class_tests_result: ${{ needs.multi-class-tests.outputs.test_result }}
+      multi_label_tests_result: ${{ needs.multi-label-tests.outputs.test_result }}
+      ovr_tests_result: ${{ needs.ovr-tests.outputs.test_result }}
+      ovo_tests_result: ${{ needs.ovo-tests.outputs.test_result }}
+
+  # コードレビュー - PRの場合のみ実行
+  code-review:
+    name: Code Review
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+      contents: read
+    uses: ./.github/workflows/copilot-review.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+    secrets: inherit
+
+  # ビルド完了通知
+  notify:
+    name: Notify Completion
+    runs-on: ubuntu-latest
+    needs:
+      - report
+      - code-review
+      - binary-tests
+      - multi-class-tests
+      - multi-label-tests
+      - ovr-tests
+      - ovo-tests
+    if: always()
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Determine Overall Status and Icon
+        id: status_check
+        run: |
+          # Default to failure
+          final_status="failure"
+          final_icon="❌"
+          final_message="CI Pipeline finished with failures."
+
+          # Check if all critical preceding jobs succeeded
+          if [[ "${{ needs.report.outputs.overall_test_result }}" == "success" && \
+                ("${{ github.event_name }}" != "pull_request" || "${{ needs.code-review.result }}" == "success" || "${{ needs.code-review.result }}" == "skipped") ]]; then
+            final_status="success"
+            final_icon="✅"
+            final_message="CI Pipeline Completed Successfully!"
+          fi
+          echo "status=$final_status" >> $GITHUB_OUTPUT
+          echo "icon=$final_icon" >> $GITHUB_OUTPUT
+          echo "message=$final_message" >> $GITHUB_OUTPUT
+
+      - name: Add Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const test_status = '${{ needs.report.outputs.overall_test_result }}' === 'success' ? '✅' : ('${{ needs.report.outputs.overall_test_result }}' === 'skipped' ? '⏭️' : '❌');
+            const review_status = '${{ needs.code-review.result }}' === 'success' ? '✅' : ('${{ needs.code-review.result }}' === 'skipped' ? '⏭️' : '❌');
+
+            github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: `## CI Pipeline Completed ${{ steps.status_check.outputs.icon }}\n
+              ${{ steps.status_check.outputs.message }}\n
+              ### ステータス概要:
+              -   Overall Test Status: ${test_status}
+              -   BinaryTests: ${{ needs.binary-tests.result == 'success' && '✅' || (needs.binary-tests.result == 'skipped' && '⏭️' || '❌') }}
+              -   MultiClassTests: ${{ needs.multi-class-tests.result == 'success' && '✅' || (needs.multi-class-tests.result == 'skipped' && '⏭️' || '❌') }}
+              -   MultiLabelTests: ${{ needs.multi-label-tests.result == 'success' && '✅' || (needs.multi-label-tests.result == 'skipped' && '⏭️' || '❌') }}
+              -   OvRTests: ${{ needs.ovr-tests.result == 'success' && '✅' || (needs.ovr-tests.result == 'skipped' && '⏭️' || '❌') }}
+              -   OvOTests: ${{ needs.ovo-tests.result == 'success' && '✅' || (needs.ovo-tests.result == 'skipped' && '⏭️' || '❌') }}
+              -   Code Review: ${review_status}
+              `
+            });

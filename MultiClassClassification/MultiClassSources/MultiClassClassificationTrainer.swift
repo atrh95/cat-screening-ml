@@ -6,7 +6,14 @@ import Foundation
 public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     public typealias TrainingResultType = MultiClassTrainingResult
 
+    // DI 用のプロパティ
+    private let resourcesDirectoryPathOverride: String?
+    private let outputDirectoryPathOverride: String?
+
     public var outputDirPath: String {
+        if let overridePath = outputDirectoryPathOverride {
+            return overridePath
+        }
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
         dir.deleteLastPathComponent()
@@ -16,19 +23,28 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
     public var classificationMethod: String { "MultiClass" }
 
     public var resourcesDirectoryPath: String {
+        if let overridePath = resourcesDirectoryPathOverride {
+            return overridePath
+        }
         var dir = URL(fileURLWithPath: #filePath)
         dir.deleteLastPathComponent()
         dir.deleteLastPathComponent()
         return dir.appendingPathComponent("Resources").path
     }
 
-    public init() {}
+    public init(
+        resourcesDirectoryPathOverride: String? = nil,
+        outputDirectoryPathOverride: String? = nil
+    ) {
+        self.resourcesDirectoryPathOverride = resourcesDirectoryPathOverride
+        self.outputDirectoryPathOverride = outputDirectoryPathOverride
+    }
 
     public func train(
         author: String,
         modelName: String,
         version: String,
-        maxIterations: Int
+        modelParameters: CreateML.MLImageClassifier.ModelParameters
     )
         async -> MultiClassTrainingResult?
     {
@@ -77,13 +93,9 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             print("\n🚀 多クラス分類モデル [\(modelName)] のトレーニングを開始します...")
             let trainingDataSource = MLImageClassifier.DataSource.labeledDirectories(at: trainingDataParentDir)
 
-            var parameters = MLImageClassifier.ModelParameters()
-            parameters.featureExtractor = .scenePrint(revision: 1)
-            parameters.maxIterations = maxIterations
-            parameters.validation = .split(strategy: .automatic)
-
+            print("⏳ \(modelName) モデルトレーニング実行中 (最大反復: \(modelParameters.maxIterations)回)... ")
             let startTime = Date()
-            let model = try MLImageClassifier(trainingData: trainingDataSource, parameters: parameters)
+            let model = try MLImageClassifier(trainingData: trainingDataSource, parameters: modelParameters)
             let endTime = Date()
             let duration = endTime.timeIntervalSince(startTime)
             print("🎉 [\(modelName)] のトレーニングに成功しました！ (所要時間: \(String(format: "%.2f", duration))秒)")
@@ -93,7 +105,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
             let trainingDataAccuracyPercentage = (1.0 - trainingEvaluation.classificationError) * 100
             let trainingAccuracyPercentageString = String(format: "%.2f", trainingDataAccuracyPercentage)
-            print("  📈 トレーニングデータ正解率: \(trainingAccuracyPercentageString)%")
+            print("  📊 トレーニングデータ正解率: \(trainingAccuracyPercentageString)%")
 
             let validationDataAccuracyPercentage = (1.0 - validationEvaluation.classificationError) * 100
             let validationAccuracyPercentageString = String(format: "%.2f", validationDataAccuracyPercentage)
@@ -103,6 +115,8 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             var perClassPrecisionRates: [Double] = []
 
             let confusionMatrix = validationEvaluation.confusion
+            print("📄 Confusion Matrix Description: \(confusionMatrix.description)")
+            print("📄 Confusion Matrix Rows Count: \(confusionMatrix.rows.count)")
             var labelSet = Set<String>()
             for row in confusionMatrix.rows {
                 if let actual = row["True Label"]?.stringValue {
@@ -114,6 +128,14 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             }
             let labelsFromConfusion = Array(labelSet).sorted()
             print("📊 混同行列から取得した評価用クラスラベル: \(labelsFromConfusion.joined(separator: ", "))")
+
+            let finalDetectedClassLabels: [String]
+            if labelsFromConfusion.isEmpty, !classLabelsFromFileSystem.isEmpty {
+                print("⚠️ 混同行列からラベルが取得できなかったため、ファイルシステムのラベルを使用します。")
+                finalDetectedClassLabels = classLabelsFromFileSystem
+            } else {
+                finalDetectedClassLabels = labelsFromConfusion
+            }
 
             struct PerClassValidationMetrics {
                 let label: String
@@ -176,7 +198,9 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
                 perClassRecallRates.append(recallRate)
                 perClassPrecisionRates.append(precisionRate)
-                print("    🔎 クラス: \(label) - 再現率: \(String(format: "%.2f", recallRate * 100))%, 適合率: \(String(format: "%.2f", precisionRate * 100))%")
+                print(
+                    "    🔎 クラス: \(label) - 再現率: \(String(format: "%.2f", recallRate * 100))%, 適合率: \(String(format: "%.2f", precisionRate * 100))%"
+                )
 
                 detailedClassMetrics.append(PerClassValidationMetrics(
                     label: label,
@@ -205,7 +229,7 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             }
 
             // 2. 最大反復回数
-            descriptionParts.append("最大反復回数: \(maxIterations)回")
+            descriptionParts.append("最大反復回数: \(modelParameters.maxIterations)回")
 
             // 3. 正解率情報 (全体)
             descriptionParts.append(String(
@@ -218,10 +242,12 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
             if !detailedClassMetrics.isEmpty {
                 descriptionParts.append("クラス別検証指標:")
                 for metrics in detailedClassMetrics {
-                    let metricsString = String(format: "    %@: 再現率 %.1f%%, 適合率 %.1f%%",
-                                               metrics.label,
-                                               metrics.recall * 100,
-                                               metrics.precision * 100)
+                    let metricsString = String(
+                        format: "    %@: 再現率 %.1f%%, 適合率 %.1f%%",
+                        metrics.label,
+                        metrics.recall * 100,
+                        metrics.precision * 100
+                    )
                     descriptionParts.append(metricsString)
                 }
             }
@@ -246,18 +272,18 @@ public class MultiClassClassificationTrainer: ScreeningTrainerProtocol {
 
             return MultiClassTrainingResult(
                 modelName: modelName,
-                trainingDataAccuracy: trainingDataAccuracyPercentage,
-                validationDataAccuracy: validationDataAccuracyPercentage,
+                trainingDataAccuracy: trainingDataAccuracyPercentage / 100.0,
+                validationDataAccuracy: validationDataAccuracyPercentage / 100.0,
                 trainingDataErrorRate: trainingEvaluation.classificationError,
                 validationDataErrorRate: validationEvaluation.classificationError,
                 trainingTimeInSeconds: duration,
                 modelOutputPath: outputModelURL.path,
                 trainingDataPath: trainingDataParentDir.path,
                 classLabels: classLabelsFromFileSystem,
-                maxIterations: maxIterations,
+                maxIterations: modelParameters.maxIterations,
                 macroAverageRecall: macroAverageRecallRate,
                 macroAveragePrecision: macroAveragePrecisionRate,
-                detectedClassLabelsList: labelsFromConfusion
+                detectedClassLabelsList: finalDetectedClassLabels
             )
 
         } catch let error as CreateML.MLCreateError {
